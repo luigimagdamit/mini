@@ -16,9 +16,11 @@ void delay(int number_of_seconds)
 }
 
 #define REGISTER_LIM 16
+#define MEMORY_LIM 2048
 #define IM_LIM 64
 struct CPU {
   uint8_t REGISTER[REGISTER_LIM];
+  uint8_t MEMORY[MEMORY_LIM];
   uint16_t pc;
 
   uint16_t im[IM_LIM];
@@ -98,6 +100,14 @@ void rsh(struct CPU *c, uint8_t dest, uint8_t a) {
   c->REGISTER[dest] = (REG[a] >> 0x01);
 }
 // 0x9000
+void lod(struct CPU *c, uint8_t a, uint16_t addr) {
+  c->REGISTER[a] = c->MEMORY[addr]; 
+}
+
+void str(struct CPU *c, uint8_t a, uint16_t addr) {
+  printf("\nSTORING %X at R[%X] IN M[%X]", c->REGISTER[a], a, addr);
+  c->MEMORY[addr] = c->REGISTER[a];
+}
 // END OF ALU =========================================
 opcode createOpcode(uint16_t hex) {
   opcode op;
@@ -134,8 +144,15 @@ void execute(struct CPU *c, uint16_t hex) {
     case(0xB000):
       if(c->LAST_ALU == 0) {
         printf("\nB000 NNN: %04X", op.nnn);
-        c->pc = op.nnn;
+          c->pc = op.nnn;
+          c->LAST_ALU = 0xFF;
       }
+      break;
+    case(0xC000):
+      lod(c, op.d, op.kk);
+      break;
+    case(0xD000):
+      str(c, op.d, op.kk);
       break;
     
   }
@@ -152,14 +169,19 @@ int main() {
   uint16_t I1 = 0x0003;
   uint16_t I2 = 0X0102;
   
-  c.im[0] = 0xE000;
-  c.im[1] = 0x0001;
-  c.im[2] = 0x0104;
-  c.im[3] = 0xB006;
-  c.im[4] = 0x2110;
-  c.im[5] = 0xA003;
-  c.im[6] = 0xF000;
-  
+uint16_t prog[] = {
+    0xE000, // starting 
+    0X0005, // 0x0dkk: store value kk at reg 0
+    0x0101, // 0x0dkk: store value kk at reg 0
+    0xB006, // 0xBnnn: conditional jump to 6
+    0x2001, // 0x2dxy: store r[x]-r[y] at d
+    0xA003, // loop back to inst 3
+    0xF000 // stop program
+  };
+  for(int i = 0; i < 7; i++) {
+    c.im[i] = prog[i];
+  }
+  str(&c, 0x01, 0x0000);
   while(c.im[c.pc] != 0xF000) {
     
     execute(&c, c.im[c.pc]);
@@ -168,6 +190,6 @@ int main() {
     printRegisters(&c);
     delay(1000);
   }
- 
+  printf("%04X", c.MEMORY[0x00FF]); 
   return 0;
 }
