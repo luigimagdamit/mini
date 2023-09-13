@@ -18,6 +18,7 @@ void delay(int number_of_seconds)
 #define REGISTER_LIM 16
 #define MEMORY_LIM 2048
 #define IM_LIM 64
+#define STACK_SIZE 2048
 struct CPU {
   uint8_t REGISTER[REGISTER_LIM];
   uint8_t MEMORY[MEMORY_LIM];
@@ -26,6 +27,8 @@ struct CPU {
   uint16_t im[IM_LIM];
   uint8_t LAST_ALU;
   // INSTRUCTION MEMORY
+
+  uint16_t stack[STACK_SIZE];
 };
 
 //0XNdkk
@@ -47,7 +50,7 @@ void add(struct CPU *c, uint8_t dest, uint8_t a, uint8_t b) {
   
   uint8_t *REG = c->REGISTER;
   printf("ADD R[%04X] + R[%04X] - %04X + %04X = %04X", a, b, REG[a], REG[b], REG[a] + REG[b]);
-  c->REGISTER[dest] = REG[a] + REG[b];
+  c->REGISTER[dest] = (uint8_t)(REG[a] + REG[b]);
   c->LAST_ALU = c->REGISTER[dest];
 }
 // 0x1000
@@ -126,7 +129,8 @@ void execute(struct CPU *c, uint16_t hex) {
   printf("\n%04X", op.inst);
   printf("\nNNN: %04X", op.nnn);
   switch(op.inst) {
-    case(0x000):
+    case(0x0000):
+      // load immediate into register
       load(c, op.d, op.kk);
       break;
     case(0x1000):
@@ -170,12 +174,10 @@ int main() {
   uint16_t I2 = 0X0102;
   
 uint16_t prog[] = {
-    0xE000, // starting 
-    0X0005, // 0x0dkk: store value kk at reg 0
-    0x0101, // 0x0dkk: store value kk at reg 0
-    0xB006, // 0xBnnn: conditional jump to 6
-    0x2001, // 0x2dxy: store r[x]-r[y] at d
-    0xA003, // loop back to inst 3
+    0x0000, // starting 
+    0x01FF,
+    0x0269,
+    0x1212,
     0xF000 // stop program
   };
   for(int i = 0; i < 7; i++) {
